@@ -44,8 +44,19 @@ def compute_ba_residuals(parameters: np.ndarray, intrinsics: np.ndarray, num_cam
     NOTE: DO NOT USE LOOPS 
     HINT: I used np.matmul; np.sum; np.sqrt; np.square, np.concatenate etc.
     """
-    
+    points3d_hom = np.concatenate([points3d, np.ones((num_points3d, 1))],
+                                  axis=1)
+    reprojected_points2d = np.zeros((points2d.shape[0], 2))
 
-    
+    for i in range(num_cameras):
+        cam_idx = camera_idxs == i
+        if np.any(cam_idx):
+            extrinsic = extrinsics[i]
+            points3d_to_reproject = points3d[points3d_idxs[cam_idx]]
+            reprojected_points2d[cam_idx] = np.sum(
+                np.matmul(intrinsics, np.matmul(extrinsic, points3d_to_reproject.T)).T, axis=1)[:2]
+
+    residuals = np.sqrt(np.sum(np.square(points2d - reprojected_points2d), axis=1))
+
     """ END YOUR CODE HERE """
     return residuals
