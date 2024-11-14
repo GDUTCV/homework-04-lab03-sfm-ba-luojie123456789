@@ -118,8 +118,9 @@ def detect_keypoints(image_file: os.path):
     """ YOUR CODE HERE:
     Detect keypoints using cv2.SIFT_create() and sift.detectAndCompute
     """
-    
-
+    image = cv2.imread(image_file)
+    sift = cv2.SIFT_create()
+    keypoints, descriptors = sift.detectAndCompute(image, None)
 
     """ END YOUR CODE HERE. """
 
@@ -167,8 +168,11 @@ def create_feature_matches(image_file1: os.path, image_file2: os.path, lowe_rati
     1. Run cv.BFMatcher() and matcher.knnMatch(descriptors1, descriptors2, 2)
     2. Filter the feature matches using the Lowe ratio test.
     """
-    
-
+    matcher = cv2.BFMatcher()
+    matches = matcher.knnMatch(descriptors1, descriptors2, 2)
+    for match1, match2 in matches:
+        if match1.distance < lowe_ratio * match2.distance:
+            good_matches.append(match1)
 
     """ END YOUR CODE HERE. """
     if len(good_matches) < min_matches:
@@ -242,8 +246,14 @@ def create_ransac_matches(image_file1: os.path, image_file2: os.path,
     Perform goemetric verification by finding the essential matrix between keypoints in the first image and keypoints in
     the second image using cv2.findEssentialMatrix(..., method=cv2.RANSAC, threshold=ransac_threshold, ...)
     """
-    
+    points1 = np.array([[p[0][0], p[0][1]] for p in points1])
+    points2 = np.array([[p[0][0], p[0][1]] for p in points2])
 
+    # Perform geometric verification
+    E, mask = cv2.findEssentialMat(points1, points2, camera_intrinsics, method=cv2.RANSAC, threshold=ransac_threshold,
+                                   prob=0.999, mask=mask)
+    points1 = points1[mask.ravel() == 1]
+    points2 = points2[mask.ravel() == 1]
 
     """ END YOUR CODE HERE """
 
@@ -278,9 +288,16 @@ def create_scene_graph(image_files: list, min_num_inliers: int = 40):
     Add edges to <graph> if the minimum number of geometrically verified inliers between images is at least  
     <min_num_inliers> 
     """
-    
+    for i, file1 in enumerate(image_files):
+        for j, file2 in enumerate(image_files):
+            if i < j:
+                match_id = os.path.basename(file1)[:-4] + '_' + os.path.basename(file2)[:-4]
+    match_file = os.path.join(RANSAC_MATCH_DIR, match_id + '.npy')
+    if os.path.exists(match_file):
+        match_idxs = np.load(match_file)
+    if match_idxs.shape[0] >= min_num_inliers:
+        graph.add_edge(i, j)
 
-    
     """ END YOUR CODE HERE """
 
     graph_dict = {node: [] for node in image_ids}
